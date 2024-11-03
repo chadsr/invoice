@@ -6,12 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"strconv"
+
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/signintech/gopdf"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -48,10 +49,9 @@ type Invoice struct {
 	Due     string      `json:"due" yaml:"due"`
 	DueDays int         `json:"dueDays" yaml:"dueDays"`
 
-	Items             []string  `json:"items" yaml:"items"`
-	Quantities        []float64 `json:"quantities" yaml:"quantities"`
-	Rates             []float64 `json:"rates" yaml:"rates"`
-	RatesTaxInclusive bool      `json:"ratesTaxInclusive" yaml:"ratesTaxInclusive"`
+	Items      []string  `json:"items" yaml:"items"`
+	Quantities []float64 `json:"quantities" yaml:"quantities"`
+	Rates      []float64 `json:"rates" yaml:"rates"`
 
 	Tax      float64 `json:"tax" yaml:"tax"`
 	TaxName  string  `json:"taxName" yaml:"taxName"`
@@ -65,10 +65,6 @@ type WorklogEntry struct {
 	Date        time.Time
 	Hours       float64
 	Description string
-}
-
-func RoundTo(x, unit float64) float64 {
-	return math.Round(x/unit) * unit
 }
 
 func readWorklogCsv(filePath string) ([]WorklogEntry, error) {
@@ -113,7 +109,8 @@ func readWorklogCsv(filePath string) ([]WorklogEntry, error) {
 			return entries, err
 		}
 
-		durationTotal := float64(durationHours) + (float64(durationMinutes) / 60.0)
+		durationTotalDec := decimal.NewFromFloat(float64(durationHours) + (float64(durationMinutes) / 60.0))
+		durationTotal, _ := durationTotalDec.Truncate(2).Float64()
 
 		entryDescription := record[4]
 
@@ -130,30 +127,30 @@ func readWorklogCsv(filePath string) ([]WorklogEntry, error) {
 
 func DefaultInvoice() Invoice {
 	return Invoice{
-		Id:                time.Now().Format("200601"),
-		IdPrefix:          "INV",
-		Email:             "some@business.com",
-		Website:           "business.com",
-		Title:             "INVOICE",
-		LogoSize:          100,
-		Rates:             []float64{25},
-		Quantities:        []float64{2},
-		Dates:             []time.Time{time.Now()},
-		Items:             []string{"Paper Cranes"},
-		From:              "Project Folded, Inc.",
-		FromDetails:       map[string]string{},
-		FromAddress:       []string{"1", "Main st", "Newyark", "626112"},
-		To:                "Untitled Corporation, Inc.",
-		ToDetails:         map[string]string{},
-		ToAddress:         []string{"1/56A", "Main st", "Newyark", "626112"},
-		Date:              time.Now().Format("Jan 02, 2006"),
-		Due:               time.Now().AddDate(0, 0, 14).Format("Jan 02, 2006"),
-		DueDays:           14,
-		RatesTaxInclusive: false,
-		Tax:               0,
-		TaxName:           "VAT",
-		Discount:          0,
-		Currency:          "USD",
+		Id: time.Now().Add(time.Hour * 24 * 31).Format("200601"),
+		// Id:          "202409",
+		IdPrefix:    "INV",
+		Email:       "some@business.com",
+		Website:     "business.com",
+		Title:       "INVOICE",
+		LogoSize:    100,
+		Rates:       []float64{25},
+		Quantities:  []float64{2},
+		Dates:       []time.Time{time.Now()},
+		Items:       []string{"Paper Cranes"},
+		From:        "Project Folded, Inc.",
+		FromDetails: map[string]string{},
+		FromAddress: []string{"1", "Main st", "Newyark", "626112"},
+		To:          "Untitled Corporation, Inc.",
+		ToDetails:   map[string]string{},
+		ToAddress:   []string{"1/56A", "Main st", "Newyark", "626112"},
+		Date:        time.Now().Format("Jan 02, 2006"),
+		Due:         time.Now().AddDate(0, 0, 14).Format("Jan 02, 2006"),
+		DueDays:     14,
+		Tax:         0,
+		TaxName:     "VAT",
+		Discount:    0,
+		Currency:    "USD",
 	}
 }
 
@@ -194,7 +191,6 @@ func init() {
 	generateCmd.Flags().StringVar(&file.Due, "due", defaultInvoice.Due, "Payment due date")
 	generateCmd.Flags().IntVar(&file.DueDays, "due-days", defaultInvoice.DueDays, "Payment due days after generation date")
 
-	generateCmd.Flags().BoolVar(&file.RatesTaxInclusive, "rates-tax-inclusive", defaultInvoice.RatesTaxInclusive, "Rates tax inclusive")
 	generateCmd.Flags().Float64Var(&file.Tax, "tax", defaultInvoice.Tax, "Tax")
 	generateCmd.Flags().StringVar(&file.TaxName, "tax-name", defaultInvoice.TaxName, "Tax Name")
 	generateCmd.Flags().Float64VarP(&file.Discount, "discount", "d", defaultInvoice.Discount, "Discount")
@@ -319,7 +315,7 @@ var generateCmd = &cobra.Command{
 			return err
 		}
 
-		err = writeTotals(&pdf, totalCost, totalCost*file.Discount, file.Tax, file.RatesTaxInclusive, file.TaxName)
+		err = writeTotals(&pdf, totalCost, totalCost*file.Discount, file.Tax, file.TaxName)
 		if err != nil {
 			return err
 		}

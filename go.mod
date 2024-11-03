@@ -5,6 +5,7 @@ go 1.22.0
 toolchain go1.23.1
 
 require (
+	github.com/shopspring/decimal v1.4.0
 	github.com/signintech/gopdf v0.27.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5

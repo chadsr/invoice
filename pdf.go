@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/signintech/gopdf"
 )
 
@@ -301,7 +302,7 @@ func writeFooter(pdf *gopdf.GoPdf, id string) error {
 }
 
 func writeItems(pdf *gopdf.GoPdf, width float64, currencySymbol string, items []string, quantities []float64, rates []float64, dates []time.Time) (totalCost float64, totalHours float64, err error) {
-	itemsTable := pdf.NewTableLayout(pdf.GetX(), pdf.GetY(), 24, len(items))
+	itemsTable := pdf.NewTableLayout(pdf.GetX(), pdf.GetY(), 16, len(items))
 	itemsTable.SetTableStyle(gopdf.CellStyle{
 		BorderStyle: gopdf.BorderStyle{
 			RGBColor: gopdf.RGBColor{R: 75, G: 75, B: 75},
@@ -340,7 +341,8 @@ func writeItems(pdf *gopdf.GoPdf, width float64, currencySymbol string, items []
 			rate = rates[i]
 		}
 
-		total := float64(quantity) * rate
+		totalDec := decimal.NewFromFloat(float64(quantity) * rate)
+		total, _ := totalDec.Truncate(2).Float64()
 		itemsTable.AddRow([]string{
 			dates[i].Format("02-01-2006"),
 			items[i],
@@ -349,7 +351,7 @@ func writeItems(pdf *gopdf.GoPdf, width float64, currencySymbol string, items []
 			fmt.Sprintf("%s%.2f", currencySymbol, total),
 		})
 
-		totalCost += float64(quantity) * rate
+		totalCost += total
 		totalHours += quantity
 	}
 
@@ -396,25 +398,13 @@ func writeTotal(pdf *gopdf.GoPdf, label string, total float64) error {
 	return nil
 }
 
-func writeTotals(pdf *gopdf.GoPdf, subtotal float64, discount float64, taxRate float64, taxInclusive bool, taxName string) error {
-	if taxInclusive {
-		err := writeTotal(pdf, subtotalLabel, subtotal-(subtotal*taxRate))
-		if err != nil {
-			return err
-		}
-	} else {
-		err := writeTotal(pdf, subtotalLabel, subtotal)
-		if err != nil {
-			return err
-		}
+func writeTotals(pdf *gopdf.GoPdf, subtotal float64, discount float64, taxRate float64, taxName string) error {
+
+	err := writeTotal(pdf, subtotalLabel, subtotal)
+	if err != nil {
+		return err
 	}
 
-	if taxRate > 0 {
-		err := writeTotal(pdf, fmt.Sprintf("%s %.0f%%", taxName, taxRate*100), subtotal*taxRate)
-		if err != nil {
-			return err
-		}
-	}
 	if discount > 0 {
 		err := writeTotal(pdf, discountLabel, discount)
 		if err != nil {
@@ -423,11 +413,20 @@ func writeTotals(pdf *gopdf.GoPdf, subtotal float64, discount float64, taxRate f
 	}
 
 	total := subtotal - discount
-	if !taxInclusive && taxRate > 0 {
-		total += (subtotal * taxRate)
+
+	if taxRate > 0 {
+		taxesDec := decimal.NewFromFloat(subtotal * taxRate)
+		taxesDec = taxesDec.Truncate(2)
+		taxes, _ := taxesDec.Float64()
+		total += taxes
+
+		err := writeTotal(pdf, fmt.Sprintf("%s %.0f%%", taxName, taxRate*100), taxes)
+		if err != nil {
+			return err
+		}
 	}
 
-	err := writeTotal(pdf, totalLabel, total)
+	err = writeTotal(pdf, totalLabel, total)
 	if err != nil {
 		return err
 	}
