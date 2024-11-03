@@ -1,6 +1,6 @@
+__debug_bin*
 *.pdf
 *.json
-*.yaml
-*.yml
 *.sh
-!.github/workflows/*.yml
+*.csv
+*.png
