@@ -244,8 +244,7 @@ var generateCmd = &cobra.Command{
 		pdf.Start(gopdf.Config{
 			PageSize: *gopdf.PageSizeA4,
 			Protection: gopdf.PDFProtectionConfig{
-				UseProtection: true,
-				Permissions:   gopdf.PermissionsCopy,
+				Permissions: gopdf.PermissionsCopy,
 			},
 		})
 		pdf.SetMargins(40, 40, 40, 40)
