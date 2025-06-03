@@ -77,6 +77,7 @@ func readWorklogCsv(filePath string) ([]WorklogEntry, error) {
 	defer f.Close()
 
 	csvReader := csv.NewReader(f)
+	csvReader.Comma = ';'
 	records, err := csvReader.ReadAll()
 	if err != nil {
 		return entries, err
@@ -127,8 +128,7 @@ func readWorklogCsv(filePath string) ([]WorklogEntry, error) {
 
 func DefaultInvoice() Invoice {
 	return Invoice{
-		Id: time.Now().Add(time.Hour * 24 * 31).Format("200601"),
-		// Id:          "202409",
+		Id:          time.Now().Add(time.Hour * 24 * 31).Format("200601"),
 		IdPrefix:    "INV",
 		Email:       "some@business.com",
 		Website:     "business.com",
